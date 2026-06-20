@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Flashcard Quiz App</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f4f6f9;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    .app-header {
+      background: #fff;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .app-header h1 { font-size: 1.4rem; font-weight: 700; color: #1a1a2e; }
+    .tabs { display: flex; gap: 8px; }
+    .tab-btn {
+      padding: 8px 18px;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+      background: transparent;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      color: #6b7280;
+      transition: all 0.15s;
+    }
+    .tab-btn:hover { background: #f9fafb; color: #1a1a2e; }
+    .tab-btn.active { background: #1a1a2e; color: #fff; border-color: #1a1a2e; }
+
+    /* ── Main ── */
+    .app-main {
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      padding: 9px 18px;
+      border-radius: 8px;
+      border: 1px solid #d1d5db;
+      background: #fff;
+      color: #1a1a2e;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn:hover { background: #f3f4f6; }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+    .btn-primary { background: #1a1a2e; color: #fff; border-color: #1a1a2e; }
+    .btn-primary:hover { background: #2d2d4e; }
+    .btn-danger { border-color: #fca5a5; color: #dc2626; }
+    .btn-danger:hover { background: #fef2f2; }
+    .btn-sm { padding: 6px 12px; font-size: 13px; }
+
+    /* ── Views ── */
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* ── Score bar ── */
+    .score-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .deck-counter { font-size: 14px; font-weight: 500; color: #6b7280; }
+    .score-badge { font-size: 13px; font-weight: 600; color: #1a1a2e; white-space: nowrap; }
+    .progress-bar { flex: 1; height: 4px; background: #e5e7eb; border-radius: 4px; overflow: hidden; }
+    .progress-fill { height: 100%; background: #1a1a2e; border-radius: 4px; transition: width 0.3s; }
+
+    /* ── Quiz Card ── */
+    .quiz-card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 2rem;
+      margin-bottom: 1.5rem;
+    }
+    .quiz-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: #9ca3af;
+      margin-bottom: 10px;
+    }
+    .quiz-question {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #1a1a2e;
+      line-height: 1.5;
+    }
+
+    /* ── Options ── */
+    .options-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 1.25rem;
+    }
+    .option-btn {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 1.5px solid #e5e7eb;
+      background: #fff;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      color: #1a1a2e;
+      text-align: left;
+      transition: all 0.15s;
+      line-height: 1.4;
+      width: 100%;
+    }
+    .option-btn:hover:not(:disabled) { border-color: #a5b4fc; background: #eef2ff; }
+    .option-btn:disabled { cursor: default; }
+    .option-btn.correct { border-color: #16a34a; background: #f0fdf4; color: #15803d; }
+    .option-btn.wrong   { border-color: #dc2626; background: #fef2f2; color: #b91c1c; }
+    .option-btn.reveal  { border-color: #16a34a; background: #f0fdf4; color: #15803d; }
+    .option-badge {
+      min-width: 28px; height: 28px;
+      border-radius: 50%;
+      border: 1.5px solid currentColor;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700;
+      flex-shrink: 0; opacity: 0.6;
+    }
+    .option-btn.correct .option-badge,
+    .option-btn.wrong   .option-badge,
+    .option-btn.reveal  .option-badge { opacity: 1; }
+
+    /* ── Feedback ── */
+    .feedback {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 1.25rem;
+    }
+    .feedback.show { display: flex; }
+    .feedback.correct-fb { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+    .feedback.wrong-fb   { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+
+    /* ── Deck actions ── */
+    .deck-actions { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+    .deck-empty { text-align: center; padding: 4rem 2rem; color: #6b7280; font-size: 1rem; line-height: 2; }
+
+    /* ── Summary ── */
+    .summary-card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 3rem 2rem;
+      text-align: center;
+    }
+    .summary-emoji { font-size: 3rem; margin-bottom: 1rem; }
+    .summary-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .summary-sub { font-size: 14px; color: #6b7280; margin-bottom: 1.5rem; }
+    .summary-stats { display: flex; justify-content: center; gap: 2.5rem; margin-bottom: 1.5rem; }
+    .stat-num { font-size: 2rem; font-weight: 700; display: block; }
+    .stat-label { font-size: 12px; color: #9ca3af; }
+    .stat-correct { color: #16a34a; }
+    .stat-wrong   { color: #dc2626; }
+
+    /* ── Manage ── */
+    .manage-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
+    .manage-header h2 { font-size: 18px; font-weight: 600; }
+    .manage-empty { color: #9ca3af; font-size: 14px; text-align: center; padding: 2rem; }
+    .card-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .card-item { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; }
+    .card-row { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; }
+    .card-preview { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+    .card-q { font-size: 14px; font-weight: 500; color: #1a1a2e; }
+    .card-opts { font-size: 12px; color: #6b7280; }
+    .card-ans { font-size: 12px; color: #16a34a; font-weight: 500; }
+    .card-item-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+    /* ── Form ── */
+    .card-form {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+    }
+    .form-title { font-size: 15px; font-weight: 600; margin-bottom: 1rem; }
+    .form-error {
+      background: #fef2f2; color: #dc2626;
+      font-size: 13px; padding: 8px 12px;
+      border-radius: 8px; margin-bottom: 12px;
+      display: none;
+    }
+    .form-error.show { display: block; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+    .form-group label { font-size: 13px; font-weight: 500; color: #374151; }
+    .form-group input,
+    .form-group textarea {
+      padding: 9px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      color: #1a1a2e;
+      background: #fff;
+      transition: border-color 0.15s;
+      width: 100%;
+    }
+    .form-group textarea { resize: vertical; }
+    .form-group input:focus,
+    .form-group textarea:focus { border-color: #1a1a2e; box-shadow: 0 0 0 2px rgba(26,26,46,0.08); }
+    .options-inputs { display: flex; flex-direction: column; gap: 8px; }
+    .option-input-row { display: flex; align-items: center; gap: 8px; }
+    .option-input-row span { font-size: 13px; font-weight: 600; color: #6b7280; min-width: 18px; }
+    .correct-select { display: flex; gap: 8px; flex-wrap: wrap; }
+    .correct-opt-btn {
+      padding: 6px 14px;
+      border-radius: 8px;
+      border: 1.5px solid #e5e7eb;
+      background: #fff;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      color: #6b7280;
+      transition: all 0.15s;
+    }
+    .correct-opt-btn.selected { border-color: #16a34a; background: #f0fdf4; color: #15803d; }
+    .form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+
+    @media (max-width: 520px) {
+      .options-grid { grid-template-columns: 1fr; }
+      .app-main { padding: 1rem; }
+      .app-header { padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🃏 Flashcard Quiz</h1>
+    <nav class="tabs">
+      <button class="tab-btn active" onclick="switchTab('study')">Study</button>
+      <button class="tab-btn" onclick="switchTab('manage')">Manage Cards</button>
+    </nav>
+  </header>
+
+  <main class="app-main">
+
+    <!-- ── STUDY VIEW ── -->
+    <div class="view active" id="view-study">
+      <div id="study-content"></div>
+    </div>
+
+    <!-- ── MANAGE VIEW ── -->
+    <div class="view" id="view-manage">
+      <div class="manage-header">
+        <h2 id="manage-title">Cards (0)</h2>
+        <button class="btn btn-primary" onclick="showAddForm()">+ Add Card</button>
+      </div>
+      <div id="add-form-wrap"></div>
+      <ul class="card-list" id="card-list"></ul>
+      <p class="manage-empty" id="manage-empty" style="display:none">No cards yet. Add your first one above!</p>
+    </div>
+
+  </main>
+
+  <script>
+    const LABELS = ['A','B','C','D'];
+
+    let cards = [
+      { id:1, question:"What is the capital of France?",         options:["London","Berlin","Paris","Madrid"],             answer:"Paris" },
+      { id:2, question:"What is 7 × 8?",                        options:["54","56","63","48"],                            answer:"56" },
+      { id:3, question:"What planet is closest to the Sun?",    options:["Venus","Earth","Mars","Mercury"],               answer:"Mercury" },
+      { id:4, question:"Who wrote Romeo and Juliet?",           options:["Charles Dickens","Jane Austen","William Shakespeare","Homer"], answer:"William Shakespeare" },
+      { id:5, question:"What is the chemical symbol for water?",options:["CO₂","O₂","H₂O","NaCl"],                       answer:"H₂O" },
+    ];
+
+    let quizIdx   = 0;
+    let answered  = false;
+    let score     = { correct:0, wrong:0 };
+    let done      = false;
+    let editingId = null;
+
+    /* ════════════════ TAB SWITCHING ════════════════ */
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', (i===0) === (tab==='study')));
+      document.getElementById('view-study').classList.toggle('active', tab==='study');
+      document.getElementById('view-manage').classList.toggle('active', tab==='manage');
+      if (tab === 'manage') renderManage();
+    }
+
+    /* ════════════════ STUDY / QUIZ ════════════════ */
+    function startQuiz() {
+      quizIdx  = 0;
+      answered = false;
+      score    = { correct:0, wrong:0 };
+      done     = false;
+      renderStudy();
+    }
+
+    function renderStudy() {
+      const el = document.getElementById('study-content');
+      if (cards.length === 0) {
+        el.innerHTML = `<div class="deck-empty"><p>No flashcards yet.</p><p>Go to <strong>Manage Cards</strong> to add some!</p></div>`;
+        return;
+      }
+      if (done) { renderSummary(); return; }
+
+      const card = cards[quizIdx];
+      const pct  = ((quizIdx+1)/cards.length)*100;
+
+      el.innerHTML = `
+        <div class="score-bar">
+          <span class="deck-counter">${quizIdx+1} / ${cards.length}</span>
+          <div class="progress-bar"><div class="progress-fill" id="pbar" style="width:${pct}%"></div></div>
+          <span class="score-badge">✅ ${score.correct} &nbsp; ❌ ${score.wrong}</span>
+        </div>
+
+        <div class="quiz-card">
+          <p class="quiz-label">Question</p>
+          <p class="quiz-question">${escHtml(card.question)}</p>
+        </div>
+
+        <div class="options-grid" id="options-grid">
+          ${card.options.map((opt,i) => `
+            <button class="option-btn" id="opt-${i}" onclick="pickOption(${i})">
+              <span class="option-badge">${LABELS[i]}</span>
+              ${escHtml(opt)}
+            </button>`).join('')}
+        </div>
+
+        <div class="feedback" id="feedback"></div>
+
+        <div class="deck-actions">
+          <button class="btn" onclick="goPrev()" ${quizIdx===0?'disabled':''}>← Previous</button>
+          <button class="btn btn-primary" id="next-btn" onclick="goNext()" disabled>
+            ${quizIdx+1===cards.length ? 'Finish Quiz 🏁' : 'Next →'}
+          </button>
+        </div>`;
+    }
+
+    function pickOption(i) {
+      if (answered) return;
+      answered = true;
+      const card = cards[quizIdx];
+      const chosen = card.options[i];
+      const isCorrect = chosen === card.answer;
+
+      if (isCorrect) score.correct++; else score.wrong++;
+
+      card.options.forEach((_,j) => {
+        const btn = document.getElementById('opt-'+j);
+        btn.disabled = true;
+        if (card.options[j] === card.answer) btn.classList.add('reveal');
+        if (j===i && !isCorrect) btn.classList.add('wrong');
+      });
+
+      const fb = document.getElementById('feedback');
+      fb.className = 'feedback show ' + (isCorrect ? 'correct-fb' : 'wrong-fb');
+      fb.innerHTML = isCorrect
+        ? '✅ &nbsp; Correct! Well done.'
+        : `❌ &nbsp; Wrong. The correct answer is "<strong>${escHtml(card.answer)}</strong>".`;
+
+      document.getElementById('next-btn').disabled = false;
+    }
+
+    function goNext() {
+      if (quizIdx+1 >= cards.length) { done=true; renderSummary(); return; }
+      quizIdx++;
+      answered = false;
+      renderStudy();
+    }
+
+    function goPrev() {
+      if (quizIdx===0) return;
+      quizIdx--;
+      answered = false;
+      renderStudy();
+    }
+
+    function renderSummary() {
+      const el  = document.getElementById('study-content');
+      const pct = Math.round((score.correct/cards.length)*100);
+      const emoji = pct===100?'🏆':pct>=70?'🎉':pct>=40?'📚':'💪';
+      const msg   = pct===100?'Perfect score!':pct>=70?'Great job!':pct>=40?'Keep practicing!':'Don\'t give up!';
+      el.innerHTML = `
+        <div class="summary-card">
+          <div class="summary-emoji">${emoji}</div>
+          <p class="summary-title">${msg}</p>
+          <p class="summary-sub">You scored ${score.correct} out of ${cards.length} (${pct}%)</p>
+          <div class="summary-stats">
+            <div><span class="stat-num stat-correct">${score.correct}</span><span class="stat-label">Correct</span></div>
+            <div><span class="stat-num stat-wrong">${cards.length-score.correct}</span><span class="stat-label">Wrong</span></div>
+            <div><span class="stat-num">${pct}%</span><span class="stat-label">Score</span></div>
+          </div>
+          <button class="btn btn-primary" onclick="startQuiz()">🔄 Restart Quiz</button>
+        </div>`;
+    }
+
+    /* ════════════════ MANAGE ════════════════ */
+    function renderManage() {
+      document.getElementById('manage-title').textContent = `Cards (${cards.length})`;
+      const list  = document.getElementById('card-list');
+      const empty = document.getElementById('manage-empty');
+
+      if (cards.length === 0) { list.innerHTML=''; empty.style.display='block'; return; }
+      empty.style.display='none';
+
+      list.innerHTML = cards.map(c => `
+        <li class="card-item" id="li-${c.id}">
+          <div class="card-row">
+            <div class="card-preview">
+              <span class="card-q">${escHtml(c.question)}</span>
+              <span class="card-opts">${c.options.map(escHtml).join(' · ')}</span>
+              <span class="card-ans">✓ ${escHtml(c.answer)}</span>
+            </div>
+            <div class="card-item-actions">
+              <button class="btn btn-sm" onclick="startEdit(${c.id})">✏️ Edit</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCard(${c.id})">🗑 Delete</button>
+            </div>
+          </div>
+        </li>`).join('');
+    }
+
+    function deleteCard(id) {
+      cards = cards.filter(c => c.id !== id);
+      renderManage();
+      renderStudy();
+    }
+
+    /* ── Add Form ── */
+    function showAddForm() {
+      editingId = null;
+      renderForm(null);
+    }
+
+    function startEdit(id) {
+      editingId = id;
+      renderForm(cards.find(c => c.id===id));
+    }
+
+    function renderForm(card) {
+      const opts = card ? card.options : ['','','',''];
+      const ans  = card ? card.answer  : '';
+      document.getElementById('add-form-wrap').innerHTML = `
+        <div class="card-form">
+          <p class="form-title">${card ? 'Edit Card' : 'New Card'}</p>
+          <p class="form-error" id="form-err"></p>
+          <div class="form-group">
+            <label>Question</label>
+            <textarea id="f-q" rows="2" placeholder="Enter your question...">${card ? escHtml(card.question) : ''}</textarea>
+          </div>
+          <div class="form-group">
+            <label>Options (A – D)</label>
+            <div class="options-inputs">
+              ${opts.map((o,i)=>`
+                <div class="option-input-row">
+                  <span>${LABELS[i]}</span>
+                  <input id="f-opt-${i}" value="${escHtml(o)}" placeholder="Option ${LABELS[i]}…" oninput="refreshCorrectBtns()"/>
+                </div>`).join('')}
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Correct Answer</label>
+            <div class="correct-select" id="correct-select"></div>
+          </div>
+          <div class="form-actions">
+            <button class="btn" onclick="cancelForm()">Cancel</button>
+            <button class="btn btn-primary" onclick="saveCard()">Save Card</button>
+          </div>
+        </div>`;
+      window._formAnswer = ans;
+      refreshCorrectBtns();
+    }
+
+    function refreshCorrectBtns() {
+      const wrap = document.getElementById('correct-select');
+      if (!wrap) return;
+      const opts = [0,1,2,3].map(i => document.getElementById('f-opt-'+i)?.value.trim()).filter(Boolean);
+      wrap.innerHTML = opts.map(o=>`
+        <button type="button" class="correct-opt-btn ${window._formAnswer===o?'selected':''}"
+          onclick="selectAnswer('${escHtml(o).replace(/'/g,"\\'")}')">
+          ${LABELS[opts.indexOf(o)]}: ${escHtml(o)}
+        </button>`).join('');
+    }
+
+    function selectAnswer(val) {
+      window._formAnswer = val;
+      refreshCorrectBtns();
+    }
+
+    function saveCard() {
+      const q    = document.getElementById('f-q').value.trim();
+      const opts = [0,1,2,3].map(i => document.getElementById('f-opt-'+i).value.trim()).filter(Boolean);
+      const ans  = window._formAnswer;
+      const err  = document.getElementById('form-err');
+
+      if (!q)          { showErr('Question is required.'); return; }
+      if (opts.length<2){ showErr('At least 2 options are required.'); return; }
+      if (!ans)         { showErr('Please select the correct answer.'); return; }
+
+      if (editingId !== null) {
+        cards = cards.map(c => c.id===editingId ? {...c, question:q, options:opts, answer:ans} : c);
+      } else {
+        cards.push({ id: Date.now(), question:q, options:opts, answer:ans });
+      }
+      cancelForm();
+      renderManage();
+    }
+
+    function showErr(msg) {
+      const e = document.getElementById('form-err');
+      e.textContent = msg;
+      e.classList.add('show');
+    }
+
+    function cancelForm() {
+      document.getElementById('add-form-wrap').innerHTML = '';
+      editingId = null;
+    }
+
+    /* ════════════════ UTILS ════════════════ */
+    function escHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // Boot
+    renderStudy();
+  </script>
+</body>
+</html>
